@@ -1,9 +1,0 @@
-README.md
-setup.py
-scarlet_extensions/__init__.py
-scarlet_extensions/initialization/__init__.py
-scarlet_extensions/initialization/source.py
-scarlet_extensions_fred3m.egg-info/PKG-INFO
-scarlet_extensions_fred3m.egg-info/SOURCES.txt
-scarlet_extensions_fred3m.egg-info/dependency_links.txt
-scarlet_extensions_fred3m.egg-info/top_level.txt
