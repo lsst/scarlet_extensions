@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-from scarlet.source import PointSource, ExtendedSource, MultiComponentSource
+from scarlet.source import PointSource, ExtendedSource
 
 
 logger = logging.getLogger("scarlet_extensions.initialization.source")
@@ -160,11 +160,10 @@ def initSource(frame, center, observation,
     """
     while maxComponents > 1:
         try:
-            source = MultiComponentSource(frame, center, observation, symmetric=symmetric,
-                                          monotonic=monotonic, thresh=thresh, shifting=shifting)
-            if (np.any([np.any(np.isnan(c.sed)) for c in source.components])
-                    or np.any([np.all(c.sed <= 0) for c in source.components])
-                    or np.any([np.any(~np.isfinite(c.morph)) for c in source.components])):
+            source = ExtendedSource(frame, center, observation, thresh=thresh, shifting=shifting, K=maxComponents)
+            try:
+                source.check_parameters()
+            except ArithmeticError:
                 msg = "Could not initialize source at {} with {} components".format(center, maxComponents)
                 logger.warning(msg)
                 raise ValueError(msg)
@@ -189,10 +188,11 @@ def initSource(frame, center, observation,
 
     if maxComponents == 1:
         try:
-            source = ExtendedSource(frame, center, observation, thresh=thresh,
-                                    symmetric=symmetric, monotonic=monotonic, shifting=shifting,
-                                    min_grad=minGradient)
-            if np.any(np.isnan(source.sed)) or np.all(source.sed <= 0) or np.sum(source.morph) == 0:
+            source = ExtendedSource(frame, center, observation, thresh=thresh, shifting=shifting)
+
+            try:
+                source.check_parameters()
+            except ArithmeticError:
                 msg = "Could not initlialize source at {} with 1 component".format(center)
                 logger.warning(msg)
                 raise ValueError(msg)
