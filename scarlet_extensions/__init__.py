@@ -1,4 +1,5 @@
 from . import initialization
+from . import testing
 
 try:
     from ._version import version
