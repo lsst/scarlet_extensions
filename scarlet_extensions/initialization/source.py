@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import scarlet
 from scarlet.source import PointSource, ExtendedSource
 
 
@@ -35,10 +36,11 @@ def hasEdgeFlux(source, edgeDistance=1):
     assert edgeDistance > 0
 
     # Use the first band that has a non-zero SED
+    flux = scarlet.measure.flux(source)
     if hasattr(source, "sed"):
-        band = np.min(np.where(source.sed > 0)[0])
+        band = np.min(np.where(flux > 0)[0])
     else:
-        band = np.min(np.where(source.components[0].sed > 0)[0])
+        band = np.min(np.where(flux > 0)[0])
     model = source.get_model()[band]
     for edge in range(edgeDistance):
         if (
@@ -163,15 +165,18 @@ def initSource(frame, center, observation,
             source = ExtendedSource(frame, center, observation, thresh=thresh, shifting=shifting, K=maxComponents)
             try:
                 source.check_parameters()
+                # Make sure that SED is >0 in at least 1 band
+                if np.any([np.all(child.children[0].get_model() <= 0) for child in source.children]):
+                    raise ArithmeticError
             except ArithmeticError:
                 msg = "Could not initialize source at {} with {} components".format(center, maxComponents)
                 logger.warning(msg)
                 raise ValueError(msg)
 
-            if downgrade and np.all([np.all(np.array(c.bbox.shape[1:]) <= 8) for c in source.components]):
+            if downgrade and np.all(np.array(source.bbox.shape[1:]) <= 8):
                 # the source is in a small box so it must be a point source
                 maxComponents = 0
-            elif downgrade and np.all([np.all(np.array(c.bbox.shape[1:]) <= 16) for c in source.components]):
+            elif downgrade and np.all(np.array(source.bbox.shape[1:]) <= 16):
                 # if the source is in a slightly larger box
                 # it is not big enough to model with 2 components
                 maxComponents = 1
@@ -192,6 +197,8 @@ def initSource(frame, center, observation,
 
             try:
                 source.check_parameters()
+                if np.all(source.children[0].get_model() <= 0):
+                    raise ArithmeticError
             except ArithmeticError:
                 msg = "Could not initlialize source at {} with 1 component".format(center)
                 logger.warning(msg)
