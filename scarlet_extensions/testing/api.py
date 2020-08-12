@@ -17,15 +17,6 @@ from . import aws
 # Paths to directories for different file types
 __ROOT__ = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-__LOOKUP_PATH__ = __ROOT__
-
-__DATA_PATH__ = os.path.join(__ROOT__, "data")
-__BLEND_PATH__ = os.path.join(__DATA_PATH__, "blends")
-__DOCS_PATH__ = os.path.join(__ROOT__, "docs")
-__PLOT_PATH__ = os.path.join(__DOCS_PATH__, "plots")
-__SCENE_PATH__ = os.path.join(__PLOT_PATH__)
-__BRANCH_FILE__ = os.path.join(__ROOT__, "branches.json")
-
 
 def get_blend_ids(set_id: int=None) -> List[str]:
     """Get all of the blend IDs contained in the set
@@ -75,13 +66,11 @@ def get_blend(blend_id: str, path:str=None):
 def get_branches() -> List[str]:
     """Load all of the branches that have been processed
 
-    :return: List of the branches in the order that they were merged
+    :return: List of the branches
     """
-    # Make sure that the set id is valid
-    f = open(__BRANCH_FILE__, "r")
-    branches = json.load(f)
-    f.close()
-    return branches["branches"]
+    table = aws.get_table("scarlet_branches")
+    result = [item["branch"] for item in table.scan()["Items"]]
+    return result
 
 
 def save_branch(branch: str) -> None:
@@ -89,12 +78,11 @@ def save_branch(branch: str) -> None:
 
     :param branch: The branch to add to the list
     """
-    branches = get_branches()
-    if branch not in branches:
-        branches.append(branch)
-        f = open(__BRANCH_FILE__, "w")
-        json.dump({"branches": branches}, f)
-        f.close()
+    table = aws.get_table("scarlet_branches")
+    with table.batch_writer() as batch:
+        batch.put_item(Item={
+            "branch": branch,
+        })
 
 
 def check_data_existence(set_id: str, branch: str, overwrite: bool) -> bool:

@@ -94,3 +94,24 @@ def download_file(bucket:str, file_name:str, object_name:str):
 
     client = get_client("s3")
     return client.download_file(bucket, object_name, file_name)
+
+
+def table_insert(table_name:str, item:dict):
+    table = get_table(table_name)
+    with table.batch_writer() as batch:
+        batch.put_item(Item=item)
+
+
+def get_table(table_name:str):
+    import boto3
+
+    if security is None:
+        _security = {
+            "aws_access_key_id": os.environ["AWS_KEY"],
+            "aws_security_access_key": os.environ["AWS_SECRET"]
+        }
+    else:
+        _security = security
+
+    dynamodb = boto3.resource("dynamodb", region_name="us-east-2", **_security)
+    return dynamodb.Table(table_name)

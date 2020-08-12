@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker as mticker
 
-from .api import __DATA_PATH__, get_filename, get_branches
+from .api import get_filename, get_branches
 
 
 def adjacent_values(vals: np.ndarray, q1: int, q3: int) -> Tuple[np.ndarray, np.ndarray]:
