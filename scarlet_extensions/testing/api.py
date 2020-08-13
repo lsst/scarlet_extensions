@@ -1,10 +1,8 @@
-import errno
+from decimal import Decimal
 from io import BytesIO
-import json
 import os
-import shutil
 import sqlite3
-from typing import List, Callable
+from typing import List, Callable, Dict
 from functools import partial
 
 import numpy as np
@@ -16,6 +14,17 @@ from . import aws
 
 # Paths to directories for different file types
 __ROOT__ = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def get_local_blend_ids(path: str) -> List[str]:
+    """Get all of the blend IDs contained in the set
+    Either `path` or `set_id` must be given.
+    :param path: Path to blends
+    :param set_id: Set containing blend ids
+    :return: List of blend IDs
+    """
+    blend_ids = [f.split(".")[0] for f in os.listdir(path)]
+    return blend_ids
 
 
 def get_blend_ids(set_id: int=None) -> List[str]:
@@ -52,8 +61,7 @@ def get_blend(blend_id: str, path:str=None):
         then the blend is loaded from AWS
     :return:
     """
-    if blend_id[-4:] != ".npz":
-        blend_id = blend_id + ".npz"
+    blend_id = "{}.npz".format(blend_id)
     if path is None:
         client = aws.get_client("s3")
         result = client.get_object(Bucket="scarlet-blends", Key=blend_id)
@@ -84,48 +92,42 @@ def save_branch(branch: str) -> None:
             "branch": branch,
         })
 
-
-def check_data_existence(set_id: str, branch: str, overwrite: bool) -> bool:
-    """Check if the pr has already been processed and if it's ok to overwrite
-    :param set_id: ID of the set to analyze
-    :param branch: The scarlet branch that wants to be created
-    :param overwrite: Whether or not it is ok to rewrite the existing branch data
-    :return: `True` if the pr can be written
-    """
-    branches = get_branches()
-    if branch in branches and not overwrite:
-        msg = "Branch {} has already been analyzed for set {}, to overwrite set the `overwrite` flag"
-        raise ValueError(msg.format(branch, set_id))
-    return True
+def get_measurement_id(measurement, blend_id:str) -> str:
+    return "{},{}".format(blend_id, measurement["source_id"])
 
 
-def create_path(path: str) -> None:
-    """
-    Create a path if it doesn't already exist
-    :param path: The name of the path to check/create
-    """
-    try:
-        os.makedirs(path)
-        print("created path '{}'".format(path))
-    except OSError as e:
-        print("results will be written to {}".format(path))
-        if e.errno != errno.EEXIST:
-            raise e
+def save_measurements(measurements: List[Dict], set_id:int, branch:str, blend_id:str) -> None:
+    assert set_id in [1, 2, 3]
+    table = aws.get_table("scarlet_set{}".format(set_id))
+    with table.batch_writer() as batch:
+        for measurement in measurements:
+            meas_id = get_measurement_id(measurement, blend_id)
+            item = {
+                "branch": branch, # primary partition key
+                "meas_id": meas_id, # primary sort key
+            }
+            item.update({
+                key: Decimal(str(meas)) if isinstance(meas, np.floating)
+                else int(meas)
+                for key, meas in measurement.items()
+            })
+            batch.put_item(Item=item)
 
 
-def get_filename(pr: str) -> str:
-    """Consistently set the filename for each PR, for each set
+def get_object_name(branch, blend_id):
+    return "{}/{}.png".format(branch, blend_id)
 
-    :param pr: The scarlet PR number
-    :return: The filename to store the measurements for each source
-    """
-    return "{}.npz".format(pr)
+
+def save_residual(residual_img, blend_id:str, branch:str):
+    from tempfile import NamedTemporaryFile
+    fp = NamedTemporaryFile()
+    plt.savefig(fp)
+    aws.upload_file(fp.name, "scarlet-residuals", get_object_name(branch, blend_id))
 
 
 def deblend_and_measure(
-        set_id: str = None,
+        set_id: int = None,
         branch: str = None,
-        overwrite: bool = False,
         data_path: str = None,
         save_records: bool = False,
         save_residuals: bool = False,
@@ -160,12 +162,10 @@ def deblend_and_measure(
     :return: The measurement `records` for each blend.
     """
     if data_path is None:
-        data_path = os.path.join(__BLEND_PATH__, set_id)
-        blend_ids = get_blend_ids(set_id=set_id)
+        blend_ids = get_blend_ids(set_id)
     else:
-        blend_ids = get_blend_ids(path=data_path)
-    if save_records:
-        check_data_existence(set_id, branch, overwrite)
+        blend_ids = get_local_blend_ids(data_path)
+
     # Use the default `scarlet_extensions` `deblend` if the user hasn't specified their own
     if deblender is None:
         # import here to avoid circular dependence
@@ -184,37 +184,32 @@ def deblend_and_measure(
     for bidx, blend_id in enumerate(blend_ids):
         print("blend {} of {}: {}".format(bidx, num_blends, blend_id))
         print(blend_id)
-        filename = os.path.join(data_path, "{}.npz".format(blend_id))
-        data = np.load(filename)
-        results = deblender(data)
-        measurements, observation, sources = results
+        data = get_blend(blend_id, data_path)
+        measurements, observation, sources = deblender(data)
+        if save_records:
+            save_measurements(measurements, set_id, branch, blend_id)
         all_measurements += measurements
 
-        if plot_residuals:
+        if plot_residuals or save_residuals:
             import scarlet.display as display
             images = observation.images
             norm = display.AsinhMapping(minimum=np.min(images), stretch=np.max(images) * 0.055, Q=10)
-            display.show_scene(sources, observation, show_model=False, show_observed=True, show_rendered=True,
-                               show_residual=True, norm=norm, figsize=(15, 5))
+            fig = display.show_scene(sources, observation, show_model=False, show_observed=True, show_rendered=True,
+                                     show_residual=True, norm=norm, figsize=(15, 5))
             plt.suptitle(branch, y=1.05)
 
             if save_residuals:
-                filename = os.path.join(__SCENE_PATH__, "{}.scene.png".format(blend_id))
-                if os.path.exists(filename):
-                    # Copy the current version as the old filename
-                    new_filename = os.path.join(__SCENE_PATH__, "old_{}.scene.png".format(blend_id))
-                    shutil.move(filename, new_filename)
-                plt.savefig(filename)
+                save_residual(fig, blend_id, branch)
                 plt.close()
             else:
                 plt.show()
 
-    # Combine all of the records together and save
+    # Save the branch if all of the measurements were saved successfully
+    if save_records:
+        save_branch(branch)
+
+    # Combine all of the records together
     _records = [tuple(m.values()) for m in all_measurements]
     keys = tuple(all_measurements[0].keys())
     records = np.rec.fromrecords(_records, names=keys)
-    # Save the data if a path was provided
-    if save_records:
-        np.savez(os.path.join(__DATA_PATH__, set_id, get_filename(branch)), records=records)
-        save_branch(branch)
     return records

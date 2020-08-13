@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker as mticker
 
-from .api import get_filename, get_branches
+from .api import get_branches
 
 
 def adjacent_values(vals: np.ndarray, q1: int, q3: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -55,9 +55,18 @@ def measure_blend(
         source = sources[matched_idx]
         flux = 27 - 2.5*np.log10(scarlet.measure.flux(source))
 
-        diff = true_flux[:, k] - flux
+        truth = true_flux[:, k]
 
-        measurement = {filters[f] + " diff": diff[f] for f in range(len(filters))}
+        measurement = {
+            "x": cx,
+            "y": cy,
+            "source_id": k,
+        }
+
+        for f in range(len(filters)):
+            measurement[filters[f]+" truth"] = truth[f]
+            measurement[filters[f]+" mag"] = flux[f]
+
         measurements.append(measurement)
 
     return measurements
