@@ -120,9 +120,16 @@ def get_object_name(branch, blend_id):
 
 def save_residual(residual_img, blend_id:str, branch:str):
     from tempfile import NamedTemporaryFile
-    fp = NamedTemporaryFile()
-    plt.savefig(fp)
+    # Writing to AWS fails if the temporary file is still open,
+    # so we are forced to close the temporary file without deleting it,
+    # then manually delete ourselves.
+    fp = NamedTemporaryFile("wb", delete=False)
+    plt.savefig(fp, bbox_inches="tight")
+    fp.close()
+    # Save the image to AWS S3
     aws.upload_file(fp.name, "scarlet-residuals", get_object_name(branch, blend_id))
+    # Delete the temporary file
+    os.remove(fp.name)
 
 
 def deblend_and_measure(
@@ -195,12 +202,11 @@ def deblend_and_measure(
             images = observation.images
             norm = display.AsinhMapping(minimum=np.min(images), stretch=np.max(images) * 0.055, Q=10)
             fig = display.show_scene(sources, observation, show_model=False, show_observed=True, show_rendered=True,
-                                     show_residual=True, norm=norm, figsize=(15, 5))
+                                     show_residual=True, norm=norm)
             plt.suptitle(branch, y=1.05)
 
             if save_residuals:
                 save_residual(fig, blend_id, branch)
-                plt.close()
             else:
                 plt.show()
 
