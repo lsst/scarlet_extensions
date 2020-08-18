@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-from scarlet.source import PointSource, ExtendedSource, MultiComponentSource
+from scarlet.source import PointSource, ExtendedSource
 
 
 logger = logging.getLogger("scarlet_extensions.initialization.source")

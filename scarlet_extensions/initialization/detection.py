@@ -5,7 +5,16 @@ import scarlet
 from scarlet.wavelet import mad_wavelet, Starlet
 
 # Class to provide compact input of instrument data and metadata
-Data = collections.namedtuple('Data', ['images', 'wcss', 'psfs', 'channels'])
+class Data:
+    def __init__(self,images, wcs, psfs, channels):
+        self.images = images
+        self.wcss = wcs
+        self.psfs = psfs
+        self.channels = channels
+
+    @images.setter
+    def images(self, images):
+        self.images = images
 
 def interpolate(data_lr, data_hr):
     ''' Interpolate low resolution data to high resolution
@@ -22,9 +31,12 @@ def interpolate(data_lr, data_hr):
     interp: numpy array
         the images in data_lr interpolated to the grid of data_hr
     '''
+    frame_lr = scarlet.Frame(data_lr.images.shape, wcs = data_lr.wcss, channels = data_lr.channels)
+    frame_hr = scarlet.Frame(data_hr.images.shape, wcs = data_hr.wcss, channels = data_hr.channels)
+
     coord_lr0 = (np.arange(data_lr.images.shape[1]), np.arange(data_lr.images.shape[1]))
     coord_hr = (np.arange(data_hr.images.shape[1]), np.arange(data_hr.images.shape[1]))
-    coord_lr = scarlet.resampling.convert_coordinates(coord_lr0, data_lr.wcss, data_hr.wcss)
+    coord_lr = scarlet.resampling.convert_coordinates(coord_lr0, frame_lr, frame_hr)
 
     interp = []
     for image in data_lr.images:
