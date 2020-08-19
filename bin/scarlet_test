@@ -8,6 +8,7 @@ def main():
     parser.add_argument("-b", "--branch", type=str, help="The current branch that is being analyzed")
     parser.add_argument("-a", "--access_key", type=str, help="The AWS access key")
     parser.add_argument("-k", "--secret_key", type=str, help="The AWS secret key")
+    parser.add_argument("-r", "--repo_path", type=str, help="Path to the scarlet repo")
 
     args = parser.parse_args()
     assert args.set is not None
@@ -22,9 +23,9 @@ def main():
         }
 
     if set_id in [1, 2]:
-        api.deblend_and_measure(set_id, args.branch, save_records=True)
+        api.deblend_and_measure(set_id, args.branch, save_records=True, repo_path=args.repo_path)
     elif set_id == 3:
-        api.deblend_and_measure(set_id, args.branch, save_records=True, save_residuals=True)
+        api.deblend_and_measure(set_id, args.branch, save_records=True, save_residuals=True, repo_path=args.repo_path)
     else:
         raise ValueError("set_id must be in [1, 2, 3], got {}".format(set_id))
 

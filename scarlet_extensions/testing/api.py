@@ -81,6 +81,22 @@ def get_branches() -> List[str]:
     return result
 
 
+def update_merged_branches(repo_path: str) -> None:
+    import git
+    repo = git.Repo(repo_path)
+
+    commits = [c for c in repo.iter_commits(merges=True)]
+    messages = [c.message.split("\n")[0] for c in commits]
+    branches = [(m.split("pmelchior/")[1]) for m in messages if "pmelchior" in m]
+    table = aws.get_table("scarlet_merged")
+    with table.batch_writer() as batch:
+        for idx, branch in enumerate(branches):
+            batch.put_item(Item={
+                "branch": branch,
+                "merge_order": idx,
+            })
+
+
 def save_branch(branch: str) -> None:
     """Append a new branch to the branches list
 
@@ -140,6 +156,7 @@ def deblend_and_measure(
         save_residuals: bool = False,
         plot_residuals: bool = False,
         deblender: Callable = None,
+        repo_path: str = None,
 ) -> np.rec.recarray:
     """Deblend an entire test set and store the measurements
 
@@ -183,6 +200,10 @@ def deblend_and_measure(
             max_iter=settings.max_iter,
             e_rel=settings.e_rel,
         )
+
+    # If this is the master branch then update the list of merged branches
+    if branch == "master" and repo_path is not None:
+        update_merged_branches(repo_path)
 
     # Deblend the scene
     all_measurements = []
