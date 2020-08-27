@@ -7,14 +7,18 @@ from scarlet.wavelet import mad_wavelet, Starlet
 # Class to provide compact input of instrument data and metadata
 class Data:
     def __init__(self,images, wcs, psfs, channels):
-        self.images = images
+        self._images = images
         self.wcss = wcs
         self.psfs = psfs
         self.channels = channels
 
+    @property
+    def images(self):
+        return self._images
+
     @images.setter
     def images(self, images):
-        self.images = images
+        self._images = images
 
 def interpolate(data_lr, data_hr):
     ''' Interpolate low resolution data to high resolution
@@ -63,8 +67,8 @@ def makeCatalog(datas, lvl=3, wave=True):
     bg_rms: array
         background level for each data set
     '''
-    if type(datas) is np.ndarray:
-        hr_images = datas / np.sum(datas, axis=(1, 2))[:, None, None]
+    if len(datas) == 1:
+        hr_images = datas[0].images / np.sum(datas[0].images, axis=(1, 2))[:, None, None]
         # Detection image as the sum over all images
         detect_image = np.sum(hr_images, axis=0)
     else:
@@ -98,8 +102,8 @@ def makeCatalog(datas, lvl=3, wave=True):
     bkg = sep.Background(detect)
     catalog = sep.extract(detect, lvl, err=bkg.globalrms)
 
-    if type(datas) is np.ndarray:
-        bg_rms = mad_wavelet(datas)
+    if len(datas) ==1:
+        bg_rms = mad_wavelet(datas[0].images)
     else:
         bg_rms = []
         for data in datas:
