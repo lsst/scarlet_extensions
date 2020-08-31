@@ -1,12 +1,6 @@
 import numpy as np
 import scarlet.display
-from scarlet.display import AsinhMapping
-from scarlet import Starlet
-from scarlet.wavelet import mad_wavelet
-from scarlet.observation import LowResObservation
-import scipy.stats as scs
 from scarlet.initialization import build_initialization_coadd
-from functools import partial
 from ..initialization.detection import makeCatalog
 
 
@@ -53,7 +47,7 @@ class Runner:
         else:
             self.ra_dec = ra_dec
 
-    def run(self, it = 200, e_rel = 1.e-6):
+    def run(self, it = 200, e_rel = 1.e-6, plot = False):
         """ Run scarlet on the Runner object
 
         parameters
@@ -62,16 +56,36 @@ class Runner:
             Maximum number of iterations used to fit the model
         e_rel: `float`
             limit on the convergence: stop condition
+        plot: 'bool'
+            if set to True, plots the model and residuals of the regression
         """
         self.blend = scarlet.Blend(self.sources, self.observations)
         self.blend.fit(it, e_rel=e_rel)
         print("scarlet ran for {0} iterations to logL = {1}".format(len(self.blend.loss), -self.blend.loss[-1]))
+        if plot:
+            from scarlet.display import AsinhMapping
+            norm_hsc = AsinhMapping(minimum=-1, stretch=5, Q=1)
+            norm_hst = AsinhMapping(minimum=-1, stretch=10, Q=1)
+            norms = [norm_hsc, norm_hst]
+            import matplotlib.pyplot as plt
+            for i in range(len(self.observations)):
+                scarlet.display.show_scene(self.sources,
+                                       norm=norms[i],
+                                       observation=self.observations[i],
+                                       show_model=False,
+                                       show_rendered=True,
+                                       show_observed=True,
+                                       show_residual=True,
+                                       figsize=(12, 4)
+                                       )
+            plt.show()
 
-
-    def initialize_sources(self):
+    def initialize_sources(self, ra_dec = None):
         '''
         Initialize all sources as Extended sources
         '''
+        if ra_dec is not None:
+            self.ra_dec = ra_dec
         if len(self.observations) > 1:
             # Building a detection coadd
             coadd, bg_cutoff = build_initialization_coadd(self.observations, filtered_coadd=True)
