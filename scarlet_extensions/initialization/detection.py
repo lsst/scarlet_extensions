@@ -51,6 +51,9 @@ def interpolate(data_lr, data_hr):
 def makeCatalog(datas, lvl=3, wave=True):
     ''' Creates a detection catalog by combining low and high resolution data
 
+    This function is used for detection before running scarlet.
+    It is particularly useful for stellar crowded fields and for detecting high frequency features.
+
     Parameters
     ----------
     datas: array

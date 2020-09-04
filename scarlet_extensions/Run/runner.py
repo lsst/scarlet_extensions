@@ -7,6 +7,9 @@ from ..initialization.detection import makeCatalog
 class Runner:
     """ Class that lets scarlet run on a set of `Data` objects
 
+        This class makes running on batches of images easier.
+        It runs on multiple or single observations alike.
+
         parameters
         ----------
         datas: list of Data objects
