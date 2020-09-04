@@ -80,25 +80,29 @@ class Runner:
                                        )
             plt.show()
 
-    def initialize_sources(self, ra_dec = None):
+    def initialize_sources(self, ks, ra_dec = None):
         '''
         Initialize all sources as Extended sources
+        ks: array
+            array of sources for the scene. For elements of ks that are numbers, the source id an extended source.
+            If an element of ks is set to 'point', it corresponds to a point source.
         '''
         if ra_dec is not None:
             self.ra_dec = ra_dec
-        if len(self.observations) > 1:
-            # Building a detection coadd
-            coadd, bg_cutoff = build_initialization_coadd(self.observations, filtered_coadd=True)
-        else:
-            coadd = None
-            bg_cutoff = None
+        # Building a detection coadd
+        coadd, bg_cutoff = build_initialization_coadd(self.observations, filtered_coadd=True)
+
 
         # Source initialisation
-        self.sources = [
-            scarlet.ExtendedSource(self.frame, sky, self.observations, coadd=coadd, coadd_rms=bg_cutoff)
-            for sky in self.ra_dec
-        ]
-
+        sources = []
+        for i, sky in enumerate(self.ra_dec):
+            if ks[i] == 'point':
+                sources.append(
+                    scarlet.PointSource(self.frame, sky, self.observations))
+            else:
+                sources.append(
+                    scarlet.ExtendedSource(self.frame, sky, self.observations, coadd=coadd, coadd_rms=bg_cutoff))
+        self.sources = sources
 
     def run_detection(self, lvl = 3, wavelet = True):
         ''' Runs the detection algorithms on data

@@ -95,7 +95,7 @@ def makeCatalog(datas, lvl=3, wave=True):
     else:
         if wave:
             wave_detect = Starlet(detect_image).coefficients
-            detect = wave_detect[0][0] + wave_detect[0][1] + wave_detect[0][2]
+            detect = wave_detect[0][0]
         else:
             detect = detect_image
 
