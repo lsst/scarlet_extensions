@@ -12,23 +12,24 @@ class Runner:
 
         parameters
         ----------
-        datas: list of Data objects
-            the list of Data objects to run scarlet on
+        datas: list of `scarlet_extensions.initialization.detection.Data` objects
+            the list of Data objects to run scarlet on.
+            These objects contain a cube of images along with psf, wcs anc channels information
         model_psf: 'numpy.ndarray' or `scarlet.PSF`
             the target psf of the model
         ra_dec: `array`
             ra and dec positions of detected sources
     """
 
-    def __init__(self, datas, model_psf, ra_dec = None):
+    def __init__(self, data, model_psf, ra_dec = None):
 
-        self._data = datas
+        self._data = data
         self.run_detection(lvl = 3, wavelet = True)
 
         if len(self._data) == 1:
             weight = np.ones_like(self._data[0].images) / (self.bg_rms ** 2)[:, None, None]
             observations = [scarlet.Observation(self._data[0].images,
-                                                    wcs=self._data[0].wcss,
+                                                    wcs=self._data[0].wcs,
                                                     psfs=self._data[0].psfs,
                                                     channels=self._data[0].channels,
                                                     weights=weight)]
@@ -37,7 +38,7 @@ class Runner:
             for i,bg in enumerate(self.bg_rms):
                 weight = np.ones_like(self._data[i].images) / (bg**2)[:,None,None]
                 observations.append(scarlet.Observation(self._data[i].images,
-                                                    wcs=self._data[i].wcss,
+                                                    wcs=self._data[i].wcs,
                                                     psfs=self._data[i].psfs,
                                                     channels=self._data[i].channels,
                                                     weights=weight))
@@ -46,7 +47,7 @@ class Runner:
         # Convert the HST coordinates to the HSC WCS
         loc = [type(o) is not scarlet.LowResObservation for o in self.observations]
         if ra_dec is None:
-            self.ra_dec = self.observations[np.where(loc)[0][0]].frame.get_sky_coord(self.pixels)
+            self.ra_dec = self.observations[np.where(loc)[0][0]].frame.get_sky_coord(self.pixel_coords)
         else:
             self.ra_dec = ra_dec
 
@@ -128,7 +129,7 @@ class Runner:
         self.wavelet = wavelet
         catalog, self.bg_rms = makeCatalog(self._data, lvl, wavelet)
         # Get the source coordinates from the HST catalog
-        self.pixels = np.stack((catalog['y'], catalog['x']), axis=1)
+        self.pixel_coords = np.stack((catalog['y'], catalog['x']), axis=1)
 
     @property
     def data(self):
@@ -141,4 +142,4 @@ class Runner:
         for i,obs in enumerate(self.observations):
             obs.images = self._data[i].images
         loc = [type(o) is not scarlet.LowResObservation for o in self.observations]
-        self.ra_dec = self.observations[np.where(loc)[0][0]].frame.get_sky_coord(self.pixels)
+        self.ra_dec = self.observations[np.where(loc)[0][0]].frame.get_sky_coord(self.pixel_coords)

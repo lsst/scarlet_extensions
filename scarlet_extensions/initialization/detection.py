@@ -1,14 +1,18 @@
 import sep
 import numpy as np
-import collections
 import scarlet
 from scarlet.wavelet import mad_wavelet, Starlet
 
 # Class to provide compact input of instrument data and metadata
 class Data:
+    """ This is a rudimentary class to set the necessary information for a scarlet run.
+
+    While it is possible for scarlet to run without wcs or psf,
+    it is strongly recommended not to, which is why these entry are not optional.
+    """
     def __init__(self,images, wcs, psfs, channels):
         self._images = images
-        self.wcss = wcs
+        self.wcs = wcs
         self.psfs = psfs
         self.channels = channels
 
@@ -35,8 +39,8 @@ def interpolate(data_lr, data_hr):
     interp: numpy array
         the images in data_lr interpolated to the grid of data_hr
     '''
-    frame_lr = scarlet.Frame(data_lr.images.shape, wcs = data_lr.wcss, channels = data_lr.channels)
-    frame_hr = scarlet.Frame(data_hr.images.shape, wcs = data_hr.wcss, channels = data_hr.channels)
+    frame_lr = scarlet.Frame(data_lr.images.shape, wcs = data_lr.wcs, channels = data_lr.channels)
+    frame_hr = scarlet.Frame(data_hr.images.shape, wcs = data_hr.wcs, channels = data_hr.channels)
 
     coord_lr0 = (np.arange(data_lr.images.shape[1]), np.arange(data_lr.images.shape[1]))
     coord_hr = (np.arange(data_hr.images.shape[1]), np.arange(data_hr.images.shape[1]))
