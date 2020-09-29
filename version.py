@@ -1,3 +1,4 @@
+
 import re
 import subprocess
 
@@ -14,15 +15,15 @@ def get_public_version():
         The name of the latest public version.
     """
     try:
-        # We can't just import scarlet_extensions._version because we are not
-        # using
+        # We can't just import scarlet_extensions._version
+        # because we are not using git
         f = open('_version.txt')
         _version = f.readline()
         f.close()
         return _version
     except FileNotFoundError:
         msg = ("Could not find either a git repo or pre-installed version." +
-               "This should never happen, please open an issue at www.github.com/fred3m/scarlet_extensions" +
+               "This should never happen, please open an issue at www.github.com/pmelchior/scarlet" +
                "so that it can be corrected.")
         raise Exception(msg)
 
@@ -40,17 +41,19 @@ def get_version():
         # There is no git repo found, so use the hardcoded version included with the latest distribution
         return get_public_version()
 
-    # Find the latest tag with a public version of scarlet_extensions
+    # Find the latest tag with a public version of scarlet
     public_version = None
 
     while (public_version is None) and len(tags) > 0:
         tag = tags.pop()
-        # Ignore scarlet_extensions tags
+        # Ignore scarlet tags
         if re.search("^(\d+\.)?(\d+\.)?(\*|\d+)$", tag):
             public_version = tag
 
     if public_version is None:
-        raise Exception("Could not find a public version of scarlet_extensions in the repo")
+        # We aren't in a github repo. so the exact version of scarlet is unknown
+        logger.warn("Could not find a public version of scarlet in the repo")
+        return "0.0.1+unknown"
 
     local_version = get_local_version(public_version)
     full_version = public_version
@@ -61,11 +64,11 @@ def get_version():
 
 
 def get_local_version(public_version):
-    """Get the local version of scarlet_extensions
+    """Get the local version of scarlet
     In general this will be the latest commit, if the commit is different
     than the tagged commit. However, it is possible for forked packages to
     overwrite this function to generate their own local version.
-    For example see `version.py` in github.com/lsst/scarlet_extensions.
+    For example see `version.py` in github.com/lsst/scarlet.
     Returns
     -------
     local_version: str
